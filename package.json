@@ -3,10 +3,19 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.12",
+    "expo-haptics": "~56.0.3",
+    "expo-location": "~56.0.18",
+    "expo-notifications": "~56.0.18",
     "expo-status-bar": "~56.0.4",
+    "lucide-react-native": "^1.21.0",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-dom": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-maps": "1.27.2",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2"
   },
   "scripts": {
     "start": "expo start",
