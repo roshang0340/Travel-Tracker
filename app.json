@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tracker",
+    "name": "Travel Tracker",
     "slug": "Tracker",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,6 +13,8 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.traveltracker.app",
+      "buildNumber": "1.0.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "location"
@@ -23,6 +25,8 @@
       }
     },
     "android": {
+      "package": "com.traveltracker.app",
+      "versionCode": 1,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -44,4 +48,3 @@
     }
   }
 }
-

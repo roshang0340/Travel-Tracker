@@ -21,7 +21,9 @@ export default function MapSection({
   routePoints = [],
   stops = [],
   isTracking,
-  replayMode = false // true when viewing past trip detail
+  replayMode = false, // true when viewing past trip detail
+  replayCurrentIndex = 0,
+  followMarker = true
 }) {
   const mapRef = useRef(null);
 
@@ -29,22 +31,37 @@ export default function MapSection({
   const mapContainerId = useRef(`map_${Math.floor(Math.random() * 1000000)}`).current;
   const leafletMapRef = useRef(null);
   const markerGroupRef = useRef(null);
-  const polylineRef = useRef(null);
+  const polylineFullRef = useRef(null);
+  const polylineProgressRef = useRef(null);
+  const replayMarkerRef = useRef(null);
 
-  // Auto-center map on location changes (Native only)
+  // Auto-center map on location changes or replay follow marker (Native only)
   useEffect(() => {
     if (Platform.OS !== 'web' && MapView && mapRef.current) {
-      const target = currentLocation || homeLocation;
-      if (target) {
-        mapRef.current.animateToRegion({
-          latitude: target.lat,
-          longitude: target.lng,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 1000);
+      if (replayMode && routePoints.length > 0 && followMarker) {
+        const idx = Math.min(replayCurrentIndex, routePoints.length - 1);
+        const target = routePoints[idx];
+        if (target && typeof target.lat === 'number' && typeof target.lng === 'number') {
+          mapRef.current.animateToRegion({
+            latitude: target.lat,
+            longitude: target.lng,
+            latitudeDelta: 0.008,
+            longitudeDelta: 0.008,
+          }, 300);
+        }
+      } else if (!replayMode) {
+        const target = currentLocation || homeLocation;
+        if (target && typeof target.lat === 'number' && typeof target.lng === 'number') {
+          mapRef.current.animateToRegion({
+            latitude: target.lat,
+            longitude: target.lng,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }, 1000);
+        }
       }
     }
-  }, [currentLocation, homeLocation]);
+  }, [currentLocation, homeLocation, replayMode, replayCurrentIndex, followMarker, routePoints]);
 
   // LEAFLET MAP INTEGRATION FOR WEB
   useEffect(() => {
@@ -82,9 +99,13 @@ export default function MapSection({
           70% { transform: scale(1.1); opacity: 0.9; box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
           100% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        .custom-live-dot {
-          animation: pulse-live 1.8s infinite;
+        @keyframes pulse-replay {
+          0% { transform: scale(1.0); opacity: 1; box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.8); }
+          70% { transform: scale(1.2); opacity: 0.9; box-shadow: 0 0 0 8px rgba(6, 182, 212, 0); }
+          100% { transform: scale(1.0); opacity: 1; box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
         }
+        .custom-live-dot { animation: pulse-live 1.8s infinite; }
+        .custom-replay-dot { animation: pulse-replay 1.5s infinite; }
       `;
       document.head.appendChild(style);
     }
@@ -104,7 +125,6 @@ export default function MapSection({
         });
         leafletMapRef.current = map;
 
-        // Apply dark styled open-source tile layer (CartoDB Dark Matter fits dark mode aesthetics beautifully!)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
           maxZoom: 20
         }).addTo(map);
@@ -118,7 +138,6 @@ export default function MapSection({
       // Clear old markers
       markerGroup.clearLayers();
 
-      // Collect coordinates to fit bounds
       const fitPoints = [];
 
       // Add Home Location (Green Pin)
@@ -147,6 +166,58 @@ export default function MapSection({
           .addTo(markerGroup);
       });
 
+      // Add Start & Finish Markers in Replay Mode
+      if (replayMode && routePoints.length > 0) {
+        const startPt = routePoints[0];
+        const finishPt = routePoints[routePoints.length - 1];
+
+        fitPoints.push([startPt.lat, startPt.lng]);
+        const startIcon = L.divIcon({
+          html: `<div style="background-color: #10b981; border: 2px solid #ffffff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 9px;">A</div>`,
+          className: 'leaflet-start-icon',
+          iconSize: [20, 20]
+        });
+        L.marker([startPt.lat, startPt.lng], { icon: startIcon })
+          .bindPopup('<b>Start Position</b>')
+          .addTo(markerGroup);
+
+        if (routePoints.length > 1) {
+          fitPoints.push([finishPt.lat, finishPt.lng]);
+          const finishIcon = L.divIcon({
+            html: `<div style="background-color: #ef4444; border: 2px solid #ffffff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 9px;">B</div>`,
+            className: 'leaflet-finish-icon',
+            iconSize: [20, 20]
+          });
+          L.marker([finishPt.lat, finishPt.lng], { icon: finishIcon })
+            .bindPopup('<b>Finish Position</b>')
+            .addTo(markerGroup);
+        }
+      }
+
+      // Add Replay Moving Marker
+      if (replayMode && routePoints.length > 0) {
+        const idx = Math.min(replayCurrentIndex, routePoints.length - 1);
+        const activePt = routePoints[idx];
+
+        if (activePt && typeof activePt.lat === 'number' && typeof activePt.lng === 'number') {
+          const activeIcon = L.divIcon({
+            html: `<div class="custom-replay-dot" style="background-color: #06b6d4; border: 2.5px solid #ffffff; border-radius: 50%; width: 18px; height: 18px; box-shadow: 0 0 10px #06b6d4;"></div>`,
+            className: 'leaflet-custom-replay',
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+          });
+
+          const speedLabel = activePt.speed ? `${activePt.speed.toFixed(1)} km/h` : '0 km/h';
+          L.marker([activePt.lat, activePt.lng], { icon: activeIcon })
+            .bindPopup(`<b>Replay Marker</b><br/>Speed: ${speedLabel}`)
+            .addTo(markerGroup);
+
+          if (followMarker) {
+            map.panTo([activePt.lat, activePt.lng], { animate: true, duration: 0.3 });
+          }
+        }
+      }
+
       // Add Current Live Location (Red Pulse Pin)
       if (!replayMode && currentLocation) {
         fitPoints.push([currentLocation.lat, currentLocation.lng]);
@@ -161,37 +232,58 @@ export default function MapSection({
           .addTo(markerGroup);
       }
 
-      // Draw Route Polyline
-      if (polylineRef.current) {
-        map.removeLayer(polylineRef.current);
-        polylineRef.current = null;
+      // Draw Route Polylines
+      if (polylineFullRef.current) {
+        map.removeLayer(polylineFullRef.current);
+        polylineFullRef.current = null;
+      }
+      if (polylineProgressRef.current) {
+        map.removeLayer(polylineProgressRef.current);
+        polylineProgressRef.current = null;
       }
 
       if (routePoints.length > 1) {
-        const pathCoords = routePoints.map(p => {
+        const fullCoords = routePoints.map(p => {
           fitPoints.push([p.lat, p.lng]);
           return [p.lat, p.lng];
         });
 
-        polylineRef.current = L.polyline(pathCoords, {
-          color: '#2563eb',
-          weight: 6,
-          opacity: 0.85,
+        // 1. Background full faint polyline guide
+        polylineFullRef.current = L.polyline(fullCoords, {
+          color: '#3b82f6',
+          weight: 4,
+          opacity: replayMode ? 0.35 : 0.85,
           lineJoin: 'round',
           lineCap: 'round'
         }).addTo(map);
+
+        // 2. Traveled active progress polyline
+        if (replayMode) {
+          const progressCoords = routePoints.slice(0, Math.min(replayCurrentIndex + 1, routePoints.length)).map(p => [p.lat, p.lng]);
+          if (progressCoords.length > 1) {
+            polylineProgressRef.current = L.polyline(progressCoords, {
+              color: '#06b6d4',
+              weight: 6,
+              opacity: 0.95,
+              lineJoin: 'round',
+              lineCap: 'round'
+            }).addTo(map);
+          }
+        }
       }
 
-      // Auto fit map bounds to show route and stops
-      if (fitPoints.length > 0) {
+      // Auto fit map bounds initial setup
+      if (!replayMode && fitPoints.length > 0) {
         const bounds = L.latLngBounds(fitPoints);
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-      } else {
-        // Fallback center
+      } else if (replayMode && replayCurrentIndex === 0 && fitPoints.length > 0 && !followMarker) {
+        const bounds = L.latLngBounds(fitPoints);
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      } else if (fitPoints.length === 0) {
         map.setView([12.9716, 77.5946], 13);
       }
     }
-  }, [currentLocation, homeLocation, routePoints, stops, replayMode]);
+  }, [currentLocation, homeLocation, routePoints, stops, replayMode, replayCurrentIndex, followMarker]);
 
   // Clean up Leaflet map instance on unmount
   useEffect(() => {
@@ -249,6 +341,50 @@ export default function MapSection({
             </Marker>
           ))}
 
+          {/* Replay Start & Finish Markers */}
+          {replayMode && routePoints.length > 0 && (
+            <>
+              <Marker
+                coordinate={{ latitude: routePoints[0].lat, longitude: routePoints[0].lng }}
+                title="Start Position"
+              >
+                <View style={[styles.markerContainer, styles.startMarker]}>
+                  <Text style={styles.startMarkerText}>A</Text>
+                </View>
+              </Marker>
+
+              {routePoints.length > 1 && (
+                <Marker
+                  coordinate={{
+                    latitude: routePoints[routePoints.length - 1].lat,
+                    longitude: routePoints[routePoints.length - 1].lng
+                  }}
+                  title="Finish Position"
+                >
+                  <View style={[styles.markerContainer, styles.finishMarker]}>
+                    <Text style={styles.startMarkerText}>B</Text>
+                  </View>
+                </Marker>
+              )}
+
+              {/* Animated Replay Moving Marker */}
+              {routePoints[replayCurrentIndex] && (
+                <Marker
+                  coordinate={{
+                    latitude: routePoints[replayCurrentIndex].lat,
+                    longitude: routePoints[replayCurrentIndex].lng
+                  }}
+                  title="Replay Position"
+                  description={routePoints[replayCurrentIndex].speed ? `${routePoints[replayCurrentIndex].speed.toFixed(1)} km/h` : '0 km/h'}
+                >
+                  <View style={styles.replayMarkerOuter}>
+                    <View style={styles.replayMarkerInner} />
+                  </View>
+                </Marker>
+              )}
+            </>
+          )}
+
           {!replayMode && currentLocation && (
             <Marker
               coordinate={{ latitude: currentLocation.lat, longitude: currentLocation.lng }}
@@ -260,10 +396,20 @@ export default function MapSection({
             </Marker>
           )}
 
+          {/* Background Full Polyline */}
           {polylineCoords.length > 1 && (
             <Polyline
               coordinates={polylineCoords}
-              strokeColor="#2563eb"
+              strokeColor={replayMode ? 'rgba(59, 130, 246, 0.35)' : '#2563eb'}
+              strokeWidth={4}
+            />
+          )}
+
+          {/* Active Replay Traveled Polyline */}
+          {replayMode && polylineCoords.length > 1 && (
+            <Polyline
+              coordinates={polylineCoords.slice(0, Math.min(replayCurrentIndex + 1, polylineCoords.length))}
+              strokeColor="#06b6d4"
               strokeWidth={6}
             />
           )}
@@ -311,6 +457,39 @@ const styles = StyleSheet.create({
   },
   stopMarker: {
     backgroundColor: '#3b82f6',
+  },
+  startMarker: {
+    backgroundColor: '#10b981',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  finishMarker: {
+    backgroundColor: '#ef4444',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  startMarkerText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  replayMarkerOuter: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(6, 182, 212, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  replayMarkerInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#06b6d4',
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
   liveMarkerOuter: {
     width: 24,

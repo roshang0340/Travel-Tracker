@@ -22,6 +22,10 @@ export default function BottomNav({ activeTab, setActiveTab }) {
             style={styles.tabButton}
             onPress={() => setActiveTab(tab.id)}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={`${tab.label} tab`}
+            accessibilityState={{ selected: isActive }}
+            accessibilityHint={`Navigates to ${tab.label} screen`}
           >
             <View style={[styles.iconWrapper, isActive && styles.activeIconWrapper]}>
               <TabIcon size={20} color={isActive ? '#3b82f6' : '#94a3b8'} />
