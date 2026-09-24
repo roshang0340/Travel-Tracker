@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
-import Svg, { Rect, Text as SvgText, Line, Path, Ellipse, G, Circle } from 'react-native-svg';
+import Svg, { Rect, Text as SvgText, Line, Path, Ellipse, G, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Compass, MapPin, Clock, Award, ArrowRight, Home, CheckCircle, Gauge, Zap, PauseCircle, Activity, BarChart2, TrendingUp, Layers, Target, Plus, Trash2, CheckCircle2 } from 'lucide-react-native';
 import { formatDistance, formatDuration, formatTime } from '../utils/format';
 import { calculateAverageSpeed } from '../utils/location';
@@ -128,7 +128,19 @@ function RouteTraceView({ homeLocation, stops = [], routePoints = [], isTracking
   return (
     <View style={styles.traceContainer}>
       <Svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
-        <Rect width={svgWidth} height={svgHeight} fill="#0b0f19" rx={6} />
+        <Defs>
+          <LinearGradient id="routeTraceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#06b6d4" stopOpacity="1" />
+            <Stop offset="50%" stopColor="#3b82f6" stopOpacity="1" />
+            <Stop offset="100%" stopColor="#10b981" stopOpacity="1" />
+          </LinearGradient>
+          <LinearGradient id="routeGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#06b6d4" stopOpacity="0.4" />
+            <Stop offset="100%" stopColor="#10b981" stopOpacity="0.4" />
+          </LinearGradient>
+        </Defs>
+
+        <Rect width={svgWidth} height={svgHeight} fill="#0b0f19" rx={8} />
 
         {[1, 2, 3, 4, 5].map((i) => (
           <Line
@@ -155,25 +167,38 @@ function RouteTraceView({ homeLocation, stops = [], routePoints = [], isTracking
           />
         ))}
 
-        {pathD && (
-          <Path
-            d={pathD}
-            fill="none"
-            stroke="#020617"
-            strokeWidth={8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            transform="translate(0, 3.5)"
-            opacity={0.6}
-          />
-        )}
-
+        {/* Outer glowing aura layer */}
         {pathD !== '' && (
           <Path
             d={pathD}
             fill="none"
-            stroke="#2563eb"
-            strokeWidth={5.5}
+            stroke="url(#routeGlowGrad)"
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.7}
+          />
+        )}
+
+        {/* Dark road base layer */}
+        {pathD !== '' && (
+          <Path
+            d={pathD}
+            fill="none"
+            stroke="#0f172a"
+            strokeWidth={7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Neon gradient route trace path */}
+        {pathD !== '' && (
+          <Path
+            d={pathD}
+            fill="none"
+            stroke="url(#routeTraceGrad)"
+            strokeWidth={4}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
