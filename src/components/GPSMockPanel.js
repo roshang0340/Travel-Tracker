@@ -22,7 +22,7 @@ export default function GPSMockPanel({
   currentLocation,
   onSetHome
 }) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [mockTimeOffset, setMockTimeOffset] = useState(0); // in milliseconds
 
   // Dispatch a simulated GPS coordinate update
@@ -308,13 +308,15 @@ const styles = StyleSheet.create({
     borderColor: '#f59e0b',
     borderRadius: 8,
     marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 10,
+    zIndex: 10,
   },
   header: {
     flexDirection: 'row',
