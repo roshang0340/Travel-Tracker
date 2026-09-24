@@ -227,40 +227,67 @@ export default function App() {
 
   // GPS SUBSCRIPTION ENGINE MANAGEMENT
   const startLocationWatcher = async () => {
-    if (Platform.OS !== 'web') {
-      if (watcherRef.current || isStartingWatcherRef.current) return; // Prevent duplicate foreground watchers & concurrent calls!
-      isStartingWatcherRef.current = true;
+    if (watcherRef.current || isStartingWatcherRef.current) return;
+    isStartingWatcherRef.current = true;
 
+    if (Platform.OS === 'web') {
       try {
-        await startBackgroundTracking();
-
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          isStartingWatcherRef.current = false;
-          return;
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          const watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+              handleLocationUpdate({
+                coords: {
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  altitude: pos.coords.altitude,
+                  speed: pos.coords.speed,
+                  accuracy: pos.coords.accuracy
+                },
+                timestamp: pos.timestamp || Date.now()
+              });
+            },
+            (err) => console.warn('Web watchPosition notice:', err),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
+          );
+          watcherRef.current = { remove: () => navigator.geolocation.clearWatch(watchId) };
         }
-
-        if (watcherRef.current) {
-          isStartingWatcherRef.current = false;
-          return;
-        }
-
-        watcherRef.current = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 2500, // 2.5 seconds update interval
-            distanceInterval: 5  // 5 meters displacement threshold
-          },
-          (locationObj) => {
-            handleLocationUpdate(locationObj);
-          }
-        );
       } catch (e) {
-        console.error('Failed to start location watcher:', e);
-        watcherRef.current = null;
+        console.warn('Failed to start web location watcher:', e);
       } finally {
         isStartingWatcherRef.current = false;
       }
+      return;
+    }
+
+    try {
+      await startBackgroundTracking();
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        isStartingWatcherRef.current = false;
+        return;
+      }
+
+      if (watcherRef.current) {
+        isStartingWatcherRef.current = false;
+        return;
+      }
+
+      watcherRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2500, // 2.5 seconds update interval
+          distanceInterval: 5  // 5 meters displacement threshold
+        },
+        (locationObj) => {
+          handleLocationUpdate(locationObj);
+        }
+      );
+    } catch (e) {
+      console.error('Failed to start location watcher:', e);
+      watcherRef.current = null;
+    } finally {
+      isStartingWatcherRef.current = false;
     }
   };
 
@@ -484,12 +511,36 @@ export default function App() {
       }
     }
 
-    initialLocation = initialLocation || currentLocation || homeLocation;
-
-    if (!initialLocation) {
-      triggerTextAlert('Error', 'Unable to resolve initial location. Start tracking failed.');
-      return;
+    if (!initialLocation && Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.geolocation) {
+      try {
+        const webPos = await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              altitude: pos.coords.altitude || 0,
+              speed: (pos.coords.speed && pos.coords.speed >= 0) ? Math.round(pos.coords.speed * 3.6 * 10) / 10 : 0,
+              accuracy: pos.coords.accuracy || 10,
+              timestamp: pos.timestamp || Date.now()
+            }),
+            () => resolve(null),
+            { timeout: 4000, enableHighAccuracy: true }
+          );
+        });
+        if (webPos) initialLocation = webPos;
+      } catch (e) {
+        console.warn('Web geolocation fetch failed:', e);
+      }
     }
+
+    initialLocation = initialLocation || currentLocation || homeLocation || {
+      lat: 12.9716,
+      lng: 77.5946,
+      altitude: 0,
+      speed: 0,
+      accuracy: 10,
+      timestamp: Date.now()
+    };
 
     const tripId = `trip_${Date.now()}`;
     const startTimestamp = Date.now();
