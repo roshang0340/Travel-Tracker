@@ -70,7 +70,6 @@ import StopsList from './src/components/StopsList';
 import AnalyticsView from './src/components/AnalyticsView';
 import HistoryList from './src/components/HistoryList';
 import SettingsView from './src/components/SettingsView';
-import GPSMockPanel from './src/components/GPSMockPanel';
 
 export default function App() {
   // Tabs: 'map' | 'stops' | 'analytics' | 'history' | 'settings'
@@ -668,22 +667,6 @@ export default function App() {
                 isTracking={isTracking || isRecoveredPending}
               />
             </View>
-
-            {/* GPS Simulation Panel */}
-            <GPSMockPanel
-              onMockLocationUpdate={handleLocationUpdate}
-              homeLocation={homeLocation}
-              isTracking={isTracking}
-              startTracking={() => executeStartTracking(null, false)}
-              stopTracking={() => executeStopTracking(null, null, null, false)}
-              currentLocation={currentLocation}
-              onSetHome={async (newHome) => {
-                setHomeLocation(newHome);
-                await saveHomeLocation(newHome);
-                setHomeGeofenceState(GEOFENCE_STATES.UNKNOWN);
-                await saveHomeGeofenceState(GEOFENCE_STATES.UNKNOWN);
-              }}
-            />
 
             {/* Float Tracking Panel */}
             <View style={styles.floatingControlCard}>
