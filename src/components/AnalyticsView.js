@@ -299,6 +299,35 @@ export default function AnalyticsView({ trip, stops = [], routePoints = [], isTr
   const [goalPeriod, setGoalPeriod] = useState(GOAL_PERIODS.WEEKLY);
   const [goalTargetInput, setGoalTargetInput] = useState('');
 
+  // Inject web keyframe animation styles for smooth dashboard transitions
+  useEffect(() => {
+    if (typeof document !== 'undefined' && !document.getElementById('analytics-animation-styles')) {
+      const style = document.createElement('style');
+      style.id = 'analytics-animation-styles';
+      style.innerHTML = `
+        @keyframes fadeInDashboard {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGlow {
+          0% { border-color: rgba(59, 130, 246, 0.3); }
+          50% { border-color: rgba(59, 130, 246, 0.8); }
+          100% { border-color: rgba(59, 130, 246, 0.3); }
+        }
+        .animated-dashboard-card {
+          animation: fadeInDashboard 0.5s ease-out forwards;
+        }
+        .animated-progress-fill {
+          transition: width 1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .animated-insight-box {
+          animation: pulseGlow 4s infinite ease-in-out;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   // Fetch goals on component mount / allTrips change
   useEffect(() => {
     async function loadUserGoals() {
