@@ -279,9 +279,23 @@ export default function MapSection({
       } else if (replayMode && replayCurrentIndex === 0 && fitPoints.length > 0 && !followMarker) {
         const bounds = L.latLngBounds(fitPoints);
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-      } else if (fitPoints.length === 0) {
-        map.setView([12.9716, 77.5946], 13);
+      } else {
+        const initialLat = currentLocation?.lat || homeLocation?.lat || 12.9716;
+        const initialLng = currentLocation?.lng || homeLocation?.lng || 77.5946;
+        map.setView([initialLat, initialLng], 14);
       }
+
+      // Force Leaflet map tile recalculation on render
+      setTimeout(() => {
+        if (leafletMapRef.current) {
+          leafletMapRef.current.invalidateSize();
+        }
+      }, 100);
+      setTimeout(() => {
+        if (leafletMapRef.current) {
+          leafletMapRef.current.invalidateSize();
+        }
+      }, 500);
     }
   }, [currentLocation, homeLocation, routePoints, stops, replayMode, replayCurrentIndex, followMarker]);
 
