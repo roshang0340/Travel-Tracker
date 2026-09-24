@@ -125,8 +125,9 @@ export default function MapSection({
         });
         leafletMapRef.current = map;
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 20
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
         markerGroupRef.current = L.layerGroup().addTo(map);
