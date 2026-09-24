@@ -1,14 +1,18 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
-// Configure Notifications Handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Configure Notifications Handler safely
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (e) {
+  console.warn('Failed to set notification handler:', e);
+}
 
 // Anti-Spam / Deduplication Cache (Cooldown Window: 10 seconds)
 const recentNotificationKeys = new Map();
